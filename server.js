@@ -1,9 +1,11 @@
+// Backend (Node.js + Express + Socket.io + MongoDB)
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
-const cors = require('cors');
 const mongoose = require('mongoose');
+const cors = require('cors');
 
+// Create Express App
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -16,58 +18,60 @@ const io = new Server(server, {
 app.use(cors());
 app.use(express.json());
 
-// Connect to MongoDB Atlas
-const MONGO_URI = "mongodb+srv://ijlaal:0786@cluster0.s1uwbsj.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
-mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-    .then(() => console.log("✅ Connected to MongoDB Atlas"))
-    .catch(err => console.error("❌ MongoDB connection error:", err));
+// MongoDB Connection
+const mongoURI = "mongodb+srv://ijlaal:0786@cluster0.s1uwbsj.mongodb.net/chatapp?retryWrites=true&w=majority";
 
-// Define Chat Message Schema
+mongoose.connect(mongoURI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+}).then(() => {
+    console.log('✅ Connected to MongoDB');
+}).catch(err => {
+    console.error('❌ MongoDB connection error:', err);
+});
+
+// Message Schema & Model
 const chatSchema = new mongoose.Schema({
-    sender: String,
-    text: String,
+    username: String,
+    message: String,
     timestamp: { type: Date, default: Date.now }
 });
 
-const ChatMessage = mongoose.model("ChatMessage", chatSchema);
+const ChatMessage = mongoose.model('ChatMessage', chatSchema);
 
-// API to Get All Messages
+// API Endpoint to Fetch Messages (Optional)
 app.get('/api/messages', async (req, res) => {
     try {
         const messages = await ChatMessage.find().sort({ timestamp: 1 });
         res.json(messages);
     } catch (err) {
-        console.error("Error fetching messages:", err);
-        res.status(500).json({ error: "Server error" });
+        res.status(500).json({ error: 'Error fetching messages' });
     }
 });
 
 // Real-time Chat Logic
 io.on('connection', async (socket) => {
-    console.log('A user connected:', socket.id);
+    console.log('🔗 A user connected:', socket.id);
 
-    // Send previous chat history
     try {
-        const chatHistory = await ChatMessage.find().sort({ timestamp: 1 });
-        socket.emit('chatHistory', chatHistory);
+        // Send chat history when user connects
+        const messages = await ChatMessage.find().sort({ timestamp: 1 });
+        socket.emit('chatHistory', messages);
     } catch (err) {
-        console.error("Error sending chat history:", err);
+        console.error('Error sending chat history:', err);
     }
 
     socket.on('chatMessage', async (msg) => {
-        try {
-            const newMessage = new ChatMessage(msg);
-            await newMessage.save();  // Save message to database
-            io.emit('chatMessage', newMessage);
-        } catch (err) {
-            console.error("Error saving message:", err);
-        }
+        const chatMsg = new ChatMessage(msg);
+        await chatMsg.save();
+        io.emit('chatMessage', msg); // Broadcast to all users
     });
 
     socket.on('disconnect', () => {
-        console.log('User disconnected:', socket.id);
+        console.log('🔴 User disconnected:', socket.id);
     });
 });
 
+// Start Server
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
