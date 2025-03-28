@@ -1,28 +1,42 @@
-const express = require('express');
-const cors = require('cors');
+const express = require("express");
+const http = require("http");
+const cors = require("cors");
+const { Server } = require("socket.io");
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const server = http.createServer(app);
+const io = new Server(server, {
+    cors: {
+        origin: "*",
+    }
+});
 
 app.use(cors());
 app.use(express.json());
 
-app.get('/', (req, res) => {
-    res.send("Welcome to Chocket Backend");
-});
+let chatHistory = [];
 
-// API Endpoint
-app.get('/api/data', (req, res) => {
-    res.json({
-        message: "Data fetched successfully!",
-        data: [
-            { id: 1, name: "Item 1" },
-            { id: 2, name: "Item 2" }
-        ]
+io.on("connection", (socket) => {
+    console.log("User connected:", socket.id);
+
+    // Send previous chat messages to the new user
+    socket.emit("chatHistory", chatHistory);
+
+    socket.on("message", (data) => {
+        chatHistory.push(data);
+        io.emit("message", data);
+    });
+
+    socket.on("disconnect", () => {
+        console.log("User disconnected:", socket.id);
     });
 });
 
-// Start Server
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+// Simple test route
+app.get("/", (req, res) => {
+    res.send("Chocket Backend Running!");
+});
+
+server.listen(3001, () => {
+    console.log("Server running on port 3001");
 });
