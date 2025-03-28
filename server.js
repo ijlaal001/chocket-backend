@@ -16,6 +16,8 @@ const io = new Server(server, {
 app.use(cors());
 app.use(express.json());
 
+const chatHistory = []; // ✅ Store chat history
+
 // Sample API Endpoint
 app.get('/api/data', (req, res) => {
     res.json({ message: "Data fetched successfully!", data: [{ id: 1, name: "Item 1" }, { id: 2, name: "Item 2" }] });
@@ -25,10 +27,14 @@ app.get('/api/data', (req, res) => {
 io.on('connection', (socket) => {
     console.log('A user connected:', socket.id);
     
-    socket.on('message', (msg) => { // ✅ Fix: Using "message" event
-        io.emit('message', msg); // ✅ Broadcast to all clients
+    // ✅ Send chat history to newly connected user
+    socket.emit('chatHistory', chatHistory);
+
+    socket.on('message', (msg) => {
+        chatHistory.push(msg); // ✅ Store messages
+        io.emit('message', msg); // ✅ Broadcast message to all clients
     });
-    
+
     socket.on('disconnect', () => {
         console.log('User disconnected:', socket.id);
     });
