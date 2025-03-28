@@ -6,37 +6,35 @@ const { Server } = require("socket.io");
 const app = express();
 const server = http.createServer(app);
 
-// Allow both frontend URLs for CORS
-app.use(cors({
-    origin: ["https://chocket-frontend.onrender.com", "https://chocket-wzuf.onrender.com"],
-    methods: ["GET", "POST"]
-}));
-
-// Initialize Socket.IO with proper CORS configuration
 const io = new Server(server, {
     cors: {
-        origin: ["https://chocket-frontend.onrender.com", "https://chocket-wzuf.onrender.com"],
+        origin: "*",
         methods: ["GET", "POST"]
     }
 });
 
+app.use(cors());
+
+let chatHistory = []; // Store messages in memory
+
 io.on("connection", (socket) => {
     console.log("A user connected:", socket.id);
 
-    socket.on("message", (data) => {
-        io.emit("message", data); // Broadcast message to all users
+    // Send chat history to the newly connected client
+    socket.emit("chatHistory", chatHistory);
+
+    // Receive messages from clients
+    socket.on("chatMessage", (msg) => {
+        chatHistory.push(msg); // Store messages
+        io.emit("chatMessage", msg); // Broadcast message to all clients
     });
 
     socket.on("disconnect", () => {
-        console.log("User disconnected:", socket.id);
+        console.log("A user disconnected:", socket.id);
     });
 });
 
-app.get("/", (req, res) => {
-    res.send("Server is running!");
-});
-
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
