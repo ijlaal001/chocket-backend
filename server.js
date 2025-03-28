@@ -25,8 +25,8 @@ app.get('/api/data', (req, res) => {
 io.on('connection', (socket) => {
     console.log('A user connected:', socket.id);
     
-    socket.on('chatMessage', (msg) => {
-        io.emit('chatMessage', msg); // Broadcast message to all clients
+    socket.on('message', (msg) => { // ✅ Fix: Using "message" event
+        io.emit('message', msg); // ✅ Broadcast to all clients
     });
     
     socket.on('disconnect', () => {
