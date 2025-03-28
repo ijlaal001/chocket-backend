@@ -1,25 +1,42 @@
-require("dotenv").config();
 const express = require("express");
-const mongoose = require("mongoose");
+const http = require("http");
 const cors = require("cors");
-const authRoutes = require("./routes/authRoutes");
+const { Server } = require("socket.io");
 
 const app = express();
+const server = http.createServer(app);
 
-// Middleware
-app.use(express.json());
-app.use(cors({ origin: process.env.FRONTEND_URL, credentials: true }));
+// Allow both frontend URLs for CORS
+app.use(cors({
+    origin: ["https://chocket-frontend.onrender.com", "https://chocket-wzuf.onrender.com"],
+    methods: ["GET", "POST"]
+}));
 
-// Routes
-app.use("/api/auth", authRoutes);
+// Initialize Socket.IO with proper CORS configuration
+const io = new Server(server, {
+    cors: {
+        origin: ["https://chocket-frontend.onrender.com", "https://chocket-wzuf.onrender.com"],
+        methods: ["GET", "POST"]
+    }
+});
 
-// MongoDB Connection
-mongoose.connect(process.env.MONGO_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-}).then(() => console.log("✅ MongoDB Connected"))
-  .catch(err => console.error("❌ MongoDB Connection Error:", err));
+io.on("connection", (socket) => {
+    console.log("A user connected:", socket.id);
 
-// Start Server
+    socket.on("message", (data) => {
+        io.emit("message", data); // Broadcast message to all users
+    });
+
+    socket.on("disconnect", () => {
+        console.log("User disconnected:", socket.id);
+    });
+});
+
+app.get("/", (req, res) => {
+    res.send("Server is running!");
+});
+
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+server.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});
